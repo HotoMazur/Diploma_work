@@ -6,7 +6,6 @@ import json
 import time
 from flask import Flask, render_template, request, jsonify, Response
 from urllib.parse import quote
-from queue import Queue
 
 # Configuration
 app = Flask(__name__)
@@ -22,7 +21,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Shared state
 shared_files = {}
 discovered_peers = set()
-peer_update_queue = Queue()  # Queue to notify web clients of peer changes
 
 
 # Load shared_files from JSON at startup
@@ -135,10 +133,10 @@ def peer_updates():
     def stream():
         print("SSE connection established")
         while True:
-            peers = peer_update_queue.get()
+            peers = list(discovered_peers)
             print(f"Sending peer update via SSE: {peers}")
             yield f"data: {json.dumps({'peers': peers})}\n\n"
-            peer_update_queue.task_done()
+            time.sleep(5)  # Send update every 5 seconds
 
     return Response(stream(), mimetype='text/event-stream')
 
@@ -211,12 +209,9 @@ def discover_peers():
         try:
             data, addr = sock.recvfrom(1024)
             if data == b"P2P_FILE_SERVER":
-                previous_peers = set(discovered_peers)
                 if addr[0] not in discovered_peers:
                     discovered_peers.add(addr[0])
                     print(f"Discovered peer via broadcast: {addr[0]}")
-                    if previous_peers != discovered_peers:
-                        peer_update_queue.put(list(discovered_peers))
         except OSError:
             pass
 
@@ -245,10 +240,6 @@ def start_p2p():
     # Start broadcast discovery
     threading.Thread(target=discover_peers, daemon=True).start()
     threading.Thread(target=announce_presence, daemon=True).start()
-
-    # Seed initial peer list to queue
-    print(f"Seeding initial peers: {list(discovered_peers)}")
-    peer_update_queue.put(list(discovered_peers))
 
     print("Tracker registration disabled for now")
     print(f"P2P node started. Access UI at http://{my_ip}:{SERVER_PORT}")
