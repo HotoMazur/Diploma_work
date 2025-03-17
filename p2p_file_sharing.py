@@ -6,9 +6,11 @@ import json
 import time
 from flask import Flask, render_template, request, jsonify, Response
 from urllib.parse import quote
+from flask_cors import CORS  # Import CORS
 
 # Configuration
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes, allowing all origins
 CHUNK_SIZE = 1024 * 1024  # 1MB chunks
 DOWNLOAD_FOLDER = "downloads"
 UPLOAD_FOLDER = "uploads"  # Folder for uploaded files
