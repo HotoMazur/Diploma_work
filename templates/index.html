@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>P2P File Sharing</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .file-list { margin-bottom: 20px; }
+        .file-item { margin: 5px 0; }
+        button { margin-left: 10px; }
+    </style>
+</head>
+<body>
+    <h1>P2P File Sharing</h1>
+
+    <h2>Upload a File to Share</h2>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" name="file" id="fileInput">
+        <button type="submit">Upload File</button>
+    </form>
+
+    <h2>My Shared Files</h2>
+    <div id="myFiles" class="file-list">
+        {% for file in files %}
+            <div class="file-item">
+                {{ file }} <button onclick="removeFile('{{ file }}')">Remove</button>
+            </div>
+        {% endfor %}
+    </div>
+
+    <h2>Files from Peers</h2>
+    <div id="peerFiles" class="file-list"></div>
+
+    <script>
+        const SERVER_PORT = {{ server_port }};
+
+        // Handle file upload
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message || data.error);
+                if (data.message) location.reload();
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+        // Remove a file
+        function removeFile(filename) {
+            fetch('/remove_file', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: filename })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message || data.error);
+                if (data.message) location.reload();
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Fetch and display peers' files
+        function loadPeerFiles(peers) {
+            console.log('Loading peers:', peers);
+            const peerFilesDiv = document.getElementById('peerFiles');
+            peerFilesDiv.innerHTML = ''; // Clear previous content
+            if (peers.length === 0) {
+                peerFilesDiv.innerHTML = '<p>No peers discovered yet.</p>';
+                return;
+            }
+            peers.forEach(peer => {
+                fetch(`http://${peer}:${SERVER_PORT}/list_files`)
+                .then(response => response.json())
+                .then(peerData => {
+                    if (peerData.files.length > 0) {
+                        const peerSection = document.createElement('div');
+                        peerSection.innerHTML = `<h3>Peer: ${peer}</h3>`;
+                        const fileList = document.createElement('ul');
+                        peerData.files.forEach(file => {
+                            const li = document.createElement('li');
+                            li.className = 'file-item';
+                            li.innerHTML = `${file} <button onclick="downloadFile('${peer}', '${file}')">Download</button>`;
+                            fileList.appendChild(li);
+                        });
+                        peerSection.appendChild(fileList);
+                        peerFilesDiv.appendChild(peerSection);
+                    }
+                })
+                .catch(error => console.error(`Error fetching files from ${peer}:`, error));
+            });
+        }
+
+        // Download a file from a peer
+        function downloadFile(peer, filename) {
+            const url = `http://${peer}:${SERVER_PORT}/download/${encodeURIComponent(filename)}`;
+            window.location.href = url; // Trigger download
+        }
+
+        // Listen for peer updates via SSE
+        const source = new EventSource('/peer_updates');
+        source.onopen = function() {
+            console.log('SSE connection opened');
+        };
+        source.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            console.log('Peer update received:', data.peers);
+            loadPeerFiles(data.peers);
+        };
+        source.onerror = function() {
+            console.error('SSE connection error');
+            document.getElementById('peerFiles').innerHTML = '<p>SSE connection failed. Check server logs.</p>';
+        };
+    </script>
+</body>
+</html>
