@@ -3,41 +3,309 @@
 <head>
     <meta charset="UTF-8">
     <title>P2P File Sharing</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        .file-list { margin-bottom: 20px; }
-        .file-item { margin: 5px 0; }
-        button { margin-left: 10px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 200px;
+            background-color: #2a2a2a;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        .sidebar-item:hover {
+            background-color: #3a3a3a;
+        }
+
+        .sidebar-item.active {
+            background-color: #4a4a4a;
+        }
+
+        .sidebar-item i {
+            font-size: 18px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #222222;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: #333333;
+            border-bottom: 1px solid #444444;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+        }
+
+        .filters select, .filters input, .filters button {
+            background-color: #444444;
+            color: #ffffff;
+            border: 1px solid #555555;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .filters input {
+            background-color: #444444;
+            color: #ffffff;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .actions button {
+            padding: 5px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .actions .create-btn {
+            background-color: #555555;
+            color: #ffffff;
+        }
+
+        .actions .add-btn {
+            background-color: #28a745;
+            color: #ffffff;
+        }
+
+        /* File Sections */
+        .file-sections {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            margin-bottom: 10px;
+            font-size: 18px;
+            color: #cccccc;
+        }
+
+        .file-list {
+            background-color: #2a2a2a;
+            border-radius: 5px;
+            padding: 10px;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #444444;
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-item button {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .file-item .remove-btn {
+            background-color: #dc3545;
+            color: #ffffff;
+        }
+
+        .file-item .download-btn {
+            background-color: #007bff;
+            color: #ffffff;
+        }
+
+        .file-item .cancel-btn {
+            background-color: #dc3545;
+            color: #ffffff;
+        }
+
+        .file-item .resume-btn {
+            background-color: #28a745;
+            color: #ffffff;
+        }
+
+        /* Drag and Drop Area */
+        .drag-drop-area {
+            border: 2px dashed #555555;
+            border-radius: 5px;
+            padding: 50px;
+            text-align: center;
+            color: #888888;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+
+        .drag-drop-area.dragover {
+            background-color: #333333;
+            border-color: #28a745;
+            color: #ffffff;
+        }
+
+        .drag-drop-area i {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
-    <h1>P2P File Sharing</h1>
-
-    <h2>Upload a File to Share</h2>
-    <form id="uploadForm" enctype="multipart/form-data">
-        <input type="file" name="file" id="fileInput">
-        <button type="submit">Upload File</button>
-    </form>
-
-    <h2>My Shared Files</h2>
-    <div id="myFiles" class="file-list">
-        {% for file in files %}
-            <div class="file-item">
-                {{ file }} <button onclick="removeFile('{{ file }}')">Remove</button>
-            </div>
-        {% endfor %}
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-item active">
+            <i>📁</i> Files
+        </div>
+        <div class="sidebar-item">
+            <i>⚡</i> Speed
+        </div>
     </div>
 
-    <h2>Files from Peers</h2>
-    <div id="peerFiles" class="file-list"></div>
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="filters">
+                <select id="filterSelect">
+                    <option>Show: ALL</option>
+                    <option>Show: Downloading</option>
+                    <option>Show: Uploading</option>
+                </select>
+                <select id="sortSelect">
+                    <option>Sort: Most Recent</option>
+                    <option>Sort: Name</option>
+                    <option>Sort: Size</option>
+                </select>
+                <input type="text" id="fileShaInput" placeholder="Enter file SHA">
+                <button onclick="searchFile()">Search</button>
+            </div>
+            <div class="actions">
+                <button class="create-btn">Create share</button>
+                <button class="add-btn" onclick="document.getElementById('fileInput').click()">Add file</button>
+            </div>
+        </div>
+
+        <!-- File Sections -->
+        <div class="file-sections">
+            <!-- Drag and Drop Area -->
+            <div class="drag-drop-area" id="dragDropArea">
+                <i>⬆️</i>
+                <p>Drag and drop a file</p>
+            </div>
+
+            <!-- My Shared Files -->
+            <div class="section">
+                <h2>My Shared Files</h2>
+                <div id="myFiles" class="file-list">
+                    {% for file in files %}
+                        <div class="file-item">
+                            <span>{{ file }} {% if file in file_metadata %} (SHA: {{ file_metadata[file]["file_sha"] }}) {% endif %}</span>
+                            <button class="remove-btn" onclick="removeFile('{{ file }}')">Remove</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Files from Peers -->
+            <div class="section">
+                <h2>Files from Peers</h2>
+                <div id="peerFiles" class="file-list"></div>
+            </div>
+
+            <!-- Ongoing Downloads -->
+            <div class="section">
+                <h2>Ongoing Downloads</h2>
+                <div id="ongoingDownloads" class="file-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden File Input -->
+    <input type="file" id="fileInput" style="display: none;">
 
     <script>
-        const SERVER_PORT = 5001 ;
+        const SERVER_PORT = {{ server_port }};
+        let peerFilesData = {};
+        let ongoingDownloads = new Set(); // Track file SHAs of ongoing downloads
 
-        // Handle file upload
-        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        // Drag and Drop Handling
+        const dragDropArea = document.getElementById('dragDropArea');
+        dragDropArea.addEventListener('dragover', (e) => {
             e.preventDefault();
-            const formData = new FormData(this);
+            dragDropArea.classList.add('dragover');
+        });
+        dragDropArea.addEventListener('dragleave', () => {
+            dragDropArea.classList.remove('dragover');
+        });
+        dragDropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragDropArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                uploadFile(files[0]);
+            }
+        });
+        dragDropArea.addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        // File Input Handling
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files.length > 0) {
+                uploadFile(files[0]);
+            }
+        });
+
+        // Upload File
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
             fetch('/upload', {
                 method: 'POST',
                 body: formData
@@ -48,7 +316,7 @@
                 if (data.message) location.reload();
             })
             .catch(error => console.error('Error:', error));
-        });
+        }
 
         // Remove a file
         function removeFile(filename) {
@@ -65,52 +333,254 @@
             .catch(error => console.error('Error:', error));
         }
 
-        // Fetch and display peers' files
-        function loadPeerFiles(peers) {
-            console.log('Loading peers:', peers);
-            const peerFilesDiv = document.getElementById('peerFiles');
-            peerFilesDiv.innerHTML = ''; // Clear previous content
-            if (peers.length === 0) {
-                peerFilesDiv.innerHTML = '<p>No peers discovered yet.</p>';
+        // Search for a file by SHA
+        async function searchFile() {
+            const fileSha = document.getElementById('fileShaInput').value.trim();
+            if (!fileSha) {
+                alert('Please enter a file SHA');
                 return;
             }
-            peers.forEach(peer => {
-                fetch(`http://${peer}:${SERVER_PORT}/list_files`)
-                .then(response => response.json())
-                .then(peerData => {
-                    if (peerData.files.length > 0) {
-                        const peerSection = document.createElement('div');
-                        peerSection.innerHTML = `<h3>Peer: ${peer}</h3>`;
-                        const fileList = document.createElement('ul');
-                        peerData.files.forEach(file => {
-                            const li = document.createElement('li');
-                            li.className = 'file-item';
-                            li.innerHTML = `${file} <button onclick="downloadFile('${peer}', '${file}')">Download</button>`;
-                            fileList.appendChild(li);
-                        });
-                        peerSection.appendChild(fileList);
-                        peerFilesDiv.appendChild(peerSection);
+
+            try {
+                const response = await fetch('/dht');
+                const dht = await response.json();
+                const peers = dht[fileSha] || [];
+                if (peers.length === 0) {
+                    document.getElementById('peerFiles').innerHTML = '<p>No peers found with this file.</p>';
+                    return;
+                }
+
+                let metadata;
+                let filename;
+                for (const peer of peers) {
+                    try {
+                        const metaResponse = await fetch(`http://${peer}:${SERVER_PORT}/file_metadata_by_sha/${fileSha}`);
+                        if (metaResponse.ok) {
+                            const metaData = await metaResponse.json();
+                            metadata = metaData.metadata;
+                            filename = metaData.filename;
+                            break;
+                        }
+                    } catch (error) {
+                        console.error(`Error fetching metadata from ${peer}:`, error);
                     }
-                })
-                .catch(error => console.error(`Error fetching files from ${peer}:`, error));
+                }
+
+                if (!filename || !metadata) {
+                    document.getElementById('peerFiles').innerHTML = '<p>Could not retrieve file metadata.</p>';
+                    return;
+                }
+
+                peerFilesData[fileSha] = { filename, peers };
+                displayPeerFiles();
+            } catch (error) {
+                console.error('Error searching DHT:', error);
+                document.getElementById('peerFiles').innerHTML = '<p>Error searching for file.</p>';
+            }
+        }
+
+        // Display available files
+        function displayPeerFiles() {
+            const peerFilesDiv = document.getElementById('peerFiles');
+            peerFilesDiv.innerHTML = '';
+            const files = Object.keys(peerFilesData);
+            if (files.length === 0) {
+                peerFilesDiv.innerHTML = '<p>No files found yet. Search by SHA.</p>';
+                return;
+            }
+
+            files.forEach(fileSha => {
+                const { filename, peers } = peerFilesData[fileSha];
+                const fileSection = document.createElement('div');
+                fileSection.innerHTML = `<h3>File: ${filename} (SHA: ${fileSha})</h3>`;
+                const peerList = document.createElement('ul');
+                peers.forEach(peer => {
+                    const li = document.createElement('li');
+                    li.className = 'file-item';
+                    li.innerHTML = `Peer: ${peer} <button class="download-btn" onclick="startDownload('${fileSha}')">Download</button>`;
+                    peerList.appendChild(li);
+                });
+                fileSection.appendChild(peerList);
+                peerFilesDiv.appendChild(fileSection);
             });
         }
 
-        // Download a file from a peer
-        function downloadFile(peer, filename) {
-            const url = `http://${peer}:${SERVER_PORT}/download/${encodeURIComponent(filename)}`;
-            window.location.href = url; // Trigger download
+        // Start a download
+        async function startDownload(fileSha) {
+            try {
+                const response = await fetch('/start_download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_sha: fileSha })
+                });
+                const data = await response.json();
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                console.log(data.message);
+                ongoingDownloads.add(fileSha);
+                pollDownloadStatus(fileSha);
+            } catch (error) {
+                console.error('Error starting download:', error);
+                alert('Error starting download');
+            }
         }
 
-        // Listen for peer updates via SSE
+        // Poll download status
+        function pollDownloadStatus(fileSha) {
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/download_status/${fileSha}`);
+                    const data = await response.json();
+                    if (data.error) {
+                        console.error(data.error);
+                        ongoingDownloads.delete(fileSha);
+                        clearInterval(interval);
+                        loadOngoingDownloads();
+                        return;
+                    }
+
+                    const { filename, status, completed_chunks, total_chunks } = data;
+                    if (status === "completed") {
+                        clearInterval(interval);
+                        ongoingDownloads.delete(fileSha);
+                        loadOngoingDownloads();
+                        // Show download button
+                        const ongoingDownloadsDiv = document.getElementById('ongoingDownloads');
+                        const existingItem = ongoingDownloadsDiv.querySelector(`[data-file-sha="${fileSha}"]`);
+                        if (existingItem) {
+                            existingItem.innerHTML = `
+                                ${filename} (SHA: ${fileSha}) - Completed
+                                <button class="download-btn" onclick="downloadCompletedFile('${fileSha}')">Download File</button>
+                                <button class="cancel-btn" onclick="cancelDownload('${fileSha}')">Remove</button>
+                            `;
+                        }
+                    } else if (status === "failed" || status === "cancelled") {
+                        clearInterval(interval);
+                        ongoingDownloads.delete(fileSha);
+                        loadOngoingDownloads();
+                    } else {
+                        // Update progress
+                        loadOngoingDownloads();
+                    }
+                } catch (error) {
+                    console.error('Error polling download status:', error);
+                    clearInterval(interval);
+                    ongoingDownloads.delete(fileSha);
+                    loadOngoingDownloads();
+                }
+            }, 2000); // Poll every 2 seconds
+        }
+
+        // Load and display ongoing downloads
+        async function loadOngoingDownloads() {
+            const ongoingDownloadsDiv = document.getElementById('ongoingDownloads');
+            ongoingDownloadsDiv.innerHTML = '';
+            const downloads = Array.from(ongoingDownloads);
+            if (downloads.length === 0) {
+                ongoingDownloadsDiv.innerHTML = '<p>No ongoing downloads.</p>';
+                return;
+            }
+
+            for (const fileSha of downloads) {
+                try {
+                    const response = await fetch(`/download_status/${fileSha}`);
+                    const data = await response.json();
+                    if (data.error) {
+                        ongoingDownloads.delete(fileSha);
+                        continue;
+                    }
+
+                    const { filename, status, completed_chunks, total_chunks } = data;
+                    const div = document.createElement('div');
+                    div.className = 'file-item';
+                    div.setAttribute('data-file-sha', fileSha);
+                    if (status === "completed") {
+                        div.innerHTML = `
+                            ${filename} (SHA: ${fileSha}) - Completed
+                            <button class="download-btn" onclick="downloadCompletedFile('${fileSha}')">Download File</button>
+                            <button class="cancel-btn" onclick="cancelDownload('${fileSha}')">Remove</button>
+                        `;
+                    } else if (status === "failed") {
+                        div.innerHTML = `
+                            ${filename} (SHA: ${fileSha}) - Failed
+                            <button class="resume-btn" onclick="startDownload('${fileSha}')">Retry</button>
+                            <button class="cancel-btn" onclick="cancelDownload('${fileSha}')">Remove</button>
+                        `;
+                    } else if (status === "cancelled") {
+                        div.innerHTML = `
+                            ${filename} (SHA: ${fileSha}) - Cancelled
+                            <button class="resume-btn" onclick="startDownload('${fileSha}')">Restart</button>
+                            <button class="cancel-btn" onclick="cancelDownload('${fileSha}')">Remove</button>
+                        `;
+                    } else {
+                        div.innerHTML = `
+                            ${filename} (SHA: ${fileSha}) - ${completed_chunks}/${total_chunks} chunks
+                            <button class="cancel-btn" onclick="cancelDownload('${fileSha}')">Cancel</button>
+                        `;
+                    }
+                    ongoingDownloadsDiv.appendChild(div);
+                } catch (error) {
+                    console.error(`Error fetching status for ${fileSha}:`, error);
+                    ongoingDownloads.delete(fileSha);
+                }
+            }
+
+            if (ongoingDownloads.size === 0) {
+                ongoingDownloadsDiv.innerHTML = '<p>No ongoing downloads.</p>';
+            }
+        }
+
+        // Download the completed file
+        async function downloadCompletedFile(fileSha) {
+            try {
+                window.location.href = `/download_file/${fileSha}`;
+            } catch (error) {
+                console.error('Error downloading file:', error);
+                alert('Error downloading file');
+            }
+        }
+
+        // Cancel a download
+        async function cancelDownload(fileSha) {
+            try {
+                const response = await fetch(`/cancel_download/${fileSha}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                ongoingDownloads.delete(fileSha);
+                loadOngoingDownloads();
+            } catch (error) {
+                console.error('Error cancelling download:', error);
+                alert('Error cancelling download');
+            }
+        }
+
+        // Listen for updates via SSE
         const source = new EventSource('/peer_updates');
         source.onopen = function() {
             console.log('SSE connection opened');
+            // Initial load of ongoing downloads
+            Object.keys(peerFilesData).forEach(fileSha => {
+                fetch(`/download_status/${fileSha}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.error && data.status !== "cancelled") {
+                            ongoingDownloads.add(fileSha);
+                            pollDownloadStatus(fileSha);
+                        }
+                    })
+                    .catch(error => console.error(`Error checking status for ${fileSha}:`, error));
+            });
         };
         source.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            console.log('Peer update received:', data.peers);
-            loadPeerFiles(data.peers);
+            console.log('Update trigger received');
+            displayPeerFiles();
         };
         source.onerror = function() {
             console.error('SSE connection error');
